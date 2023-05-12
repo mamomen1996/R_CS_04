@@ -1,5 +1,5 @@
 # R_CS_04
-Sports Analytics in R (Step-wise Regression and Subset Selection Regression)
+Sports Analytics in R
 
 ### Case-Study Title: Sports Analytics via Step-wise Regression (Subset Selection Regression)
 ### Data Analysis methodology: CRISP-DM
