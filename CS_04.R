@@ -1,4 +1,4 @@
-# Case-Study Title: Sports Analytics via Step-wise Regression (Subset Selection Regression)
+# Case-Study Title: Sports Analytics (Step-wise Regression and Subset Selection Regression)
 # Data Analysis methodology: CRISP-DM
 # Dataset: Hitters dataset (Major League Baseball Data from the 1986 and 1987 seasons in US)
 # Case Goal: Annual Salary prediction of each Player in 1987 base on his performance in 1986
