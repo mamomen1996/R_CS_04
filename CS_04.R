@@ -75,6 +75,51 @@ data[, cat_var] <- lapply(data[, cat_var], factor)
 summary(data)  # 59 NAs in Salary
 #we have good distribution in categorical variables
 
+
+### Step 3: Data PreProcessing ----
+## Dealing with MVs
+#STEP 1: Determine the type of MVs in our sample (look up for evidence of why we have NA in our dataset)
+View(data)
+
+#STEP 2: Determine the Extent of MVs in our data (if less than 5%, we can ignore them)
+summary(data)
+
+#Varaibles aspect: Summary of Variables (NA count by columns)
+mv_summary_1 <- data.frame('variable_name' = colnames(data))
+mv_summary_1$mvs_freq <- apply(data, 2, function(x) sum(is.na(x)))  # frequency of NAs in each variable
+mv_summary_1$mvs_percent <- round(mv_summary_1$mvs_freq / nrow(data), 3) * 100
+View(mv_summary_1)  # NA count and percentage in each variable
+
+#Case aspect: Summary of Cases (NA count by rows)
+mv_summary_2 <- as.data.frame(table(apply(data, 1, function(x) sum(is.na(x)))))  # frequency of NAs in each row
+colnames(mv_summary_2) <- c('mvs_per_case', 'mvs_freq')
+mv_summary_2$mvs_percent <- round(mv_summary_2$mvs_freq/nrow(data),3) * 100
+mv_summary_2$mvs_per_case <- as.numeric(levels(mv_summary_2$mvs_per_case))
+mv_summary_2$mvs_per_case_percent <- round(mv_summary_2$mvs_per_case/(ncol(data) - 1), 3) * 100
+View(mv_summary_2[c(1,4,2,3)])  # 18.3% of observations has 1 NAs (5.3% of columns)
+
+#STEP 3: Diagnose the Randomness degree of the MVs Processes
+
+#STEP 4: Select the Imputation Method (replacement MVs with a valid value)
+#Imputation Using Only Valid Data (ignore MVs):
+#	Complete Case Approach (just use the records that have no MVs in their columns)
+data2 <- data[-which(is.na(data$Salary)),]  # remove records with MVs -> because the outcome variable has MVs and if we want to replace them we have to create a prediction model for Imputation!
+
+data2 <- data2[,-1]  # remove players' name
+
+head(data2)
+dim(data2)
+sum(is.na(data2))
+summary(data2)
+
+## Identify Outliers by Tukey method
+tukey_ul <- boxplot(data2$Salary)$stats[5,1]
+tukey_ul <- quantile(data2$Salary, probs = 0.75) + 1.5 * IQR(data2$Salary)
+tukey_ul  # Tukey upper limit (outlier intersector)
+sum(data2$Salary > tukey_ul)  # 11 outlier observation
+sum(data2$Salary > tukey_ul)/nrow(data2)*100  # 4% of total data are outliers
+
+
 ## Univariate Profiling (check each variable individually)
 # Categorical variables
 #check to sure that have good distribution in each category
@@ -113,51 +158,7 @@ for(i in c(1:12, 15:17)){
 }
 par(mar = c(4.5, 4.5, 4.5, 4.5), mfrow = c(1,1))
 
-
-### Step 3: Data PreProcessing ----
-# Dealing with MVs
-#STEP 1: Determine the type of MVs in our sample (look up for evidence of why we have NA in our dataset)
-View(data)
-
-#STEP 2: Determine the Extent of MVs in our data (if less than 5%, we can ignore them)
-summary(data)
-
-#Varaibles aspect: Summary of Variables (NA count by columns)
-mv_summary_1 <- data.frame('variable_name' = colnames(data))
-mv_summary_1$mvs_freq <- apply(data, 2, function(x) sum(is.na(x)))  # frequency of NAs in each variable
-mv_summary_1$mvs_percent <- round(mv_summary_1$mvs_freq / nrow(data), 3) * 100
-View(mv_summary_1)  # NA count and percentage in each variable
-
-#Case aspect: Summary of Cases (NA count by rows)
-mv_summary_2 <- as.data.frame(table(apply(data, 1, function(x) sum(is.na(x)))))  # frequency of NAs in each row
-colnames(mv_summary_2) <- c('mvs_per_case', 'mvs_freq')
-mv_summary_2$mvs_percent <- round(mv_summary_2$mvs_freq/nrow(data),3) * 100
-mv_summary_2$mvs_per_case <- as.numeric(levels(mv_summary_2$mvs_per_case))
-mv_summary_2$mvs_per_case_percent <- round(mv_summary_2$mvs_per_case/(ncol(data) - 1), 3) * 100
-View(mv_summary_2[c(1,4,2,3)])  # 18.3% of observations has 1 NAs (5.3% of columns)
-
-#STEP 3: Diagnose the Randomness degree of the MVs Processes
-
-#STEP 4: Select the Imputation Method (replacement MVs with a valid value)
-#Imputation Using Only Valid Data (ignore MVs):
-#	Complete Case Approach (just use the records that have no MVs in their columns)
-data2 <- data[-which(is.na(data$Salary)),]  # remove records with MVs -> because the outcome variable has MVs and if we want to replace them we have to create a prediction model for Imputation!
-
-data2 <- data2[,-1]  # remove players' name
-
-head(data2)
-dim(data2)
-sum(is.na(data2))
-summary(data2)
-
-# Identify Outliers by Tukey method
-tukey_ul <- boxplot(data2$Salary)$stats[5,1]
-tukey_ul <- quantile(data2$Salary, probs = 0.75) + 1.5 * IQR(data2$Salary)
-tukey_ul  # Tukey upper limit (outlier intersector)
-sum(data2$Salary > tukey_ul)  # 11 outlier observation
-sum(data2$Salary > tukey_ul)/nrow(data2)*100  # 4% of total data are outliers
-
-# Divide Dataset into Train and Test randomly
+## Divide Dataset into Train and Test randomly
 #learn model in Train dataset
 #evaluate model performance in Test dataset
 set.seed(1234)
@@ -284,7 +285,7 @@ lm_bestsub <- lm(Log_Salary ~ Hits + HmRun + RBI + Walks + Years + CAtBat + CWal
 summary(lm_bestsub)
 
 # Model 4: Forward Stepwise Selection (Stepwise Regression)
-fwd_1 <- regsubset(Log_Salary ~ . - Salary, nvmax = 18, data = train, method = 'forward')  # do Forward Stepwise Regression method
+fwd_1 <- regsubsets(Log_Salary ~ . - Salary, nvmax = 18, data = train, method = 'forward')  # do Forward Stepwise Regression method
 summary(fwd_1)
 
 which.max(summary(fwd_1)$adjr2)  # 8-variables model
@@ -308,7 +309,7 @@ coef(bwd_1, 6)
 k <- 10
 set.seed(123)
 folds <- sample(1:k, nrow(train), rep = T)  # create 10-folds
-cv_errors <- matrix(data = NA, nrow = k, ncol = 18, dimnames = list(NULL, 1:18)))
+cv_errors <- matrix(data = NA, nrow = k, ncol = 18, dimnames = list(NULL, 1:18))
 cv_errors  # matrix of errors of 18 models per k-fold on validation set
 
 #Create prediction function for regsubsets() -> "leaps" library, does not have predict() function!
@@ -387,7 +388,7 @@ mean(bestsub_abs_err)
 median(bestsub_abs_err)
 sd(bestsub_abs_err)
 max(bestsub_abs_err)
-min(bestsub_bs_err)
+min(bestsub_abs_err)
 
 #boxplot (which observations are outliers?)
 boxplot(bestsub_abs_err, main = 'Error distribution')
@@ -412,7 +413,7 @@ mean(bestsub_cv_abs_err)
 median(bestsub_cv_abs_err)
 sd(bestsub_cv_abs_err)
 max(bestsub_cv_abs_err)
-min(bestsub_cv_bs_err)
+min(bestsub_cv_abs_err)
 
 #boxplot (which observations are outliers?)
 boxplot(bestsub_cv_abs_err, main = 'Error distribution')
@@ -436,8 +437,3 @@ View(models_comp)
 
 #Boxplot of absolute errors
 boxplot(df, main = "Abs. Errors Dist. of Models")
-
-
-
-
-
